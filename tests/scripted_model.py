@@ -28,7 +28,6 @@ while True:
 async def scripted_stream(
     messages: list[ModelMessage], info: AgentInfo
 ) -> AsyncIterator[str | DeltaToolCalls]:
-    """Drive the fixed example with a deterministic model stream."""
     returns = [
         part
         for message in messages

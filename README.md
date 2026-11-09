@@ -1,6 +1,6 @@
 # Agent Run Lab
 
-Two chats answer the same question over 18 synthetic support tickets. Tool Calling sends each page back to the model. Code Mode runs a Python loop in Monty and sends back the matching counts. Both agents use the same paginated FastAPI endpoint and stream their tool calls, response, and metrics as server-sent events. The frontend uses the shadcn/ui AI Elements chat pattern.
+Compare Tool Calling and Code Mode on the same question. Both agents use the same tools to read 18 synthetic tickets, look up customer profiles, or search public Pydantic AI issues. In Code Mode, the model writes Python that calls those tools inside Monty and returns a result to the model.
 
 ## Run locally
 
@@ -13,7 +13,7 @@ npm --prefix frontend run build
 uv run --env-file .env fastapi dev
 ```
 
-Open `http://127.0.0.1:8000/?example=enterprise-slas` to start with the Enterprise SLAs question. Run both agents and expand **Execution trace** to see each tool's output and how Monty ran the generated Python.
+Open `http://127.0.0.1:8000/?example=enterprise-slas` and run both agents. Open **Execution trace** to inspect the tool outputs and generated Python.
 
 Both agents use `deepseek-ai/DeepSeek-V4.1-Flash-1017:novita` through Hugging Face Inference Providers. The server supplies the token for both runs.
 
@@ -27,7 +27,7 @@ npm --prefix frontend run build
 
 ## Deploy to FastAPI Cloud
 
-Add `HF_TOKEN` as a secret in FastAPI Cloud before deploying. Build the frontend before each deployment. FastAPI serves `frontend/dist` and the API from the same app. The deployment include rule uploads the compiled frontend.
+Add `HF_TOKEN` as a secret in FastAPI Cloud. Build the frontend before deploying so FastAPI can serve it from `frontend/dist`.
 
 ```sh
 npm --prefix frontend ci
