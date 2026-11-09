@@ -89,7 +89,7 @@ async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> IssueSea
             response.raise_for_status()
             items = response.json()["items"]
     except (httpx.HTTPError, ValueError, KeyError):
-        await ctx.emit(ToolActivity(label="search_public_issues", detail="GitHub unavailable"))
+        await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · GitHub unavailable"))
         return {"error": "Public issue search is unavailable. Continue with any local data."}
 
     issues: list[PublicIssue] = [
@@ -97,7 +97,7 @@ async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> IssueSea
         for item in items
         if item["html_url"].startswith(f"https://github.com/{ISSUE_REPO}/issues/")
     ]
-    await ctx.emit(ToolActivity(label="search_public_issues", detail=f"{len(issues)} GitHub results"))
+    await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · {len(issues)} GitHub results"))
     return {"issues": issues}
 
 
