@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight, Braces, ChevronDown, ExternalLink, ListTree, Ticket, X } from 'lucide-react'
 import { createParser } from 'eventsource-parser'
@@ -6,7 +6,6 @@ import Markdown from 'react-markdown'
 
 import { Badge } from '@/components/ui/badge'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
-import { Input } from '@/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
 import { Message, MessageContent } from '@/components/ui/message'
 import {
@@ -22,7 +21,6 @@ const approaches = [
 ] as const
 
 type Approach = typeof approaches[number]['id']
-type Model = 'deepseek-flash' | 'deepseek-v4-pro'
 type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null }
 type Step = { name: string; detail?: string; code?: string }
 type Panel = { text: string; trace: Step[]; result?: Result; error?: string }
@@ -115,12 +113,23 @@ function Chat({ approach, panel, question, running }: {
 }
 
 function App() {
-  const [model, setModel] = useState<Model>('deepseek-flash')
-  const [apiKey, setApiKey] = useState('')
+  const [config, setConfig] = useState<{ model: string; ready: boolean }>()
   const [prompt, setPrompt] = useState(example)
   const [question, setQuestion] = useState('')
   const [panels, setPanels] = useState<Panels>(emptyPanels)
   const [controller, setController] = useState<AbortController>()
+
+  useEffect(() => {
+    const aborter = new AbortController()
+    fetch('/api/config', { signal: aborter.signal })
+      .then(async (response) => {
+        if (response.ok) {
+          setConfig(await response.json())
+        }
+      })
+      .catch(() => { /* Keep the demo disabled when configuration is unavailable. */ })
+    return () => aborter.abort()
+  }, [])
 
   function updatePanel(approach: Approach, update: (panel: Panel) => Panel) {
     setPanels((previous) => ({ ...previous, [approach]: update(previous[approach]) }))
@@ -130,14 +139,11 @@ function App() {
     try {
       const response = await fetch('/api/run', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({ approach, prompt: submitted, model }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approach, prompt: submitted }),
         signal,
       })
-      if (response.status === 401) throw new Error('Enter a DeepSeek API key.')
+      if (response.status === 503) throw new Error('The demo is waiting for its Hugging Face token.')
       if (!response.ok || !response.body) throw new Error('The server could not start this run.')
 
       let finished = false
@@ -186,7 +192,7 @@ function App() {
   async function compare(event: FormEvent) {
     event.preventDefault()
     const submitted = prompt.trim()
-    if (!submitted || !apiKey.trim() || controller) return
+    if (!submitted || !config?.ready || controller) return
     const aborter = new AbortController()
     setController(aborter)
     setQuestion(submitted)
@@ -212,19 +218,10 @@ function App() {
         <Badge variant="outline" className="dataset"><Ticket size={15} aria-hidden="true" /> 18 synthetic tickets · 3 pages</Badge>
       </section>
       <form onSubmit={compare} className="composer">
-        <div className="provider-settings">
-          <label>DeepSeek API key
-            <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)}
-              autoComplete="off" placeholder="Enter your DeepSeek API key" required disabled={!!controller} />
-          </label>
-          <label>Model
-            <select value={model} onChange={(event) => setModel(event.target.value as Model)} disabled={!!controller}>
-              <option value="deepseek-flash">DeepSeek Flash</option>
-              <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
-            </select>
-          </label>
+        <div className="composer-top">
+          <label htmlFor="question" className="prompt-label">Ask both agents</label>
+          <code className="fixed-model">{config?.model || 'DeepSeek Flash'}</code>
         </div>
-        <label htmlFor="question" className="prompt-label">Ask both agents</label>
         <InputGroup className="composer-body">
           <InputGroupTextarea id="question" value={prompt} onChange={(event) => setPrompt(event.target.value)}
             readOnly={!!controller} maxLength={2000} rows={2} />
@@ -234,13 +231,15 @@ function App() {
                 Stop <X size={15} aria-hidden="true" />
               </InputGroupButton>
             ) : (
-              <InputGroupButton type="submit" className="submit" variant="default" disabled={!apiKey.trim() || !prompt.trim()}>
+              <InputGroupButton type="submit" className="submit" variant="default" disabled={!config?.ready || !prompt.trim()}>
                 Run both <ArrowRight size={15} aria-hidden="true" />
               </InputGroupButton>
             )}
           </InputGroupAddon>
         </InputGroup>
-        <p className="composer-note">Both agents use your key for the selected model. The key stays in this tab’s memory between runs.</p>
+        {config?.ready === false && (
+          <p role="status" className="composer-note">The demo is waiting for its Hugging Face token.</p>
+        )}
       </form>
       <section className="comparison" aria-label="Agent comparison">
         {approaches.map((approach) => (

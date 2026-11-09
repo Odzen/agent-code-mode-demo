@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import HF_MODEL, HF_ROUTER, app
 from scripted_model import EXAMPLE_PROMPT, example_model
 
 
@@ -18,28 +18,35 @@ def read_events(text: str) -> list[tuple[str, object]]:
 
 
 class ComparisonTests(unittest.TestCase):
-    def test_agent_runs_require_an_api_key(self):
+    @patch.dict("os.environ", {"HF_TOKEN": ""})
+    def test_agent_runs_require_a_server_token(self):
         with TestClient(app) as client:
+            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": False})
             response = client.post(
                 "/api/run", json={"approach": "tool-calling", "prompt": EXAMPLE_PROMPT}
             )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.headers["www-authenticate"], "Bearer")
+        self.assertEqual(response.status_code, 503)
 
+    @patch.dict("os.environ", {"HF_TOKEN": "test-token"})
     @patch("app.main.OpenAIChatModel", side_effect=lambda *_args, **_kwargs: example_model())
-    def test_same_answer_and_pages_with_less_model_coordination(self, _model):
+    def test_same_answer_and_pages_with_less_model_coordination(self, model):
         with TestClient(app) as client:
+            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": True})
             runs = {}
             for approach in ("tool-calling", "code-mode"):
                 response = client.post(
                     "/api/run",
                     json={"approach": approach, "prompt": EXAMPLE_PROMPT},
-                    headers={"Authorization": "Bearer test-key"},
                 )
                 self.assertEqual(response.status_code, 200)
                 self.assertIn("text/event-stream", response.headers["content-type"])
                 runs[approach] = read_events(response.text)
 
+        self.assertEqual([call.args[0] for call in model.call_args_list], [HF_MODEL, HF_MODEL])
+        self.assertEqual(
+            [str(call.kwargs["provider"].base_url).rstrip("/") for call in model.call_args_list],
+            [HF_ROUTER, HF_ROUTER],
+        )
         direct, code = runs.values()
         self.assertEqual(direct[-1][0], "done")
         self.assertEqual(code[-1][0], "done")

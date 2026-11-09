@@ -4,18 +4,18 @@ Two chats answer the same question over 18 synthetic support tickets. Tool Calli
 
 ## Run locally
 
-Requires Python 3.14, uv, and Node.js 24 or later.
+Requires Python 3.14, uv, and Node.js 24 or later. Copy `.env.example` to `.env` and set `HF_TOKEN` to a Hugging Face token with Inference Providers permission.
 
 ```sh
 uv sync --locked
 npm --prefix frontend ci
 npm --prefix frontend run build
-uv run fastapi dev
+uv run --env-file .env fastapi dev
 ```
 
-Open `http://127.0.0.1:8000`, enter your DeepSeek API key, and click **Run both**. Flash is the default, with V4 Pro also available. Expand **Execution trace** to see the API calls and the Python passed to Monty.
+Open `http://127.0.0.1:8000` and click **Run both**. Expand **Execution trace** to see the API calls and the Python passed to Monty.
 
-Both agents use your key for the selected model. The browser holds the key in memory and sends it in the authorization header for each run.
+Both agents use `deepseek-ai/DeepSeek-V4.1-Flash-1017:novita` through Hugging Face Inference Providers. The server supplies the token for both runs.
 
 ## Verify
 
@@ -27,7 +27,7 @@ npm --prefix frontend run build
 
 ## Deploy to FastAPI Cloud
 
-Build the frontend before each deployment. FastAPI serves `frontend/dist` and the API from the same app. The deployment include rule uploads the compiled frontend.
+Add `HF_TOKEN` as a secret in FastAPI Cloud before deploying. Build the frontend before each deployment. FastAPI serves `frontend/dist` and the API from the same app. The deployment include rule uploads the compiled frontend.
 
 ```sh
 npm --prefix frontend ci

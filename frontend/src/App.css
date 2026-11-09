@@ -30,10 +30,9 @@ button.submit { min-width: 100px; height: 34px; }
 button.submit[data-variant=default] { background: var(--ink); color: #fff; }
 button.submit[data-variant=default]:hover { background: #2b465f; }
 .composer-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
-.provider-settings { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin: 0 0 12px; }
-.provider-settings label { display: grid; gap: 4px; font-size: 12px; font-weight: 650; }
-.provider-settings input, .provider-settings select { border: 1px solid var(--line); border-radius: 8px; min-height: 37px; padding: 7px 10px; background: #fff; font: inherit; font-weight: 500; width: 100%; }
-.provider-settings input:focus-visible, .provider-settings select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.composer-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.fixed-model { color: var(--muted); background: var(--canvas); border-radius: 5px; padding: 3px 6px; font-size: 11px; overflow-wrap: anywhere; }
+summary:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 
 .comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; margin-top: 15px; }
 .chat { --accent: var(--clay); --accent-soft: var(--clay-soft); border: 1px solid var(--line); border-radius: 15px; background: #fff; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -77,7 +76,6 @@ button.submit[data-variant=default]:hover { background: #2b465f; }
   .intro { align-items: start; flex-direction: column; gap: 12px; margin: 24px 0 16px; }
   .comparison { grid-template-columns: 1fr; }
   .composer { padding: 12px; }
-  .provider-settings { grid-template-columns: 1fr; }
   .composer-body { flex-direction: column; }
   .composer-body [data-slot=input-group-addon] { width: 100%; justify-content: flex-end; }
   button.submit { height: 38px; }
