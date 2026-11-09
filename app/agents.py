@@ -40,7 +40,11 @@ class ToolActivity(CustomEvent):
 
 
 async def list_overdue_tickets(ctx: RunContext[RunDeps], cursor: int | None = None) -> dict:
-    """Read one page of overdue tickets. Pass the previous next_cursor for the next page."""
+    """Read a page of overdue tickets.
+
+    Returns {"items": [{"id": str, "customer": str, "subject": str}], "next_cursor": int | None}.
+    Start with cursor=None and pass each next_cursor until the tool returns None.
+    """
     response = await ctx.deps.tickets.get("/api/tickets", params={"cursor": cursor or 0})
     response.raise_for_status()
     page = TicketPage.model_validate(response.json())
@@ -98,7 +102,8 @@ def build_agent(model: Model, approach: Approach) -> Agent[RunDeps, str]:
         instructions += (
             " When the task needs several dependent tool calls, put them in one run_code "
             "program where possible. For pagination, follow next_cursor in Python until it "
-            "is null, then return only the data needed to answer."
+            "is null, then return only the data needed to answer. Use the documented return shape "
+            "to write the program without exploratory calls."
         )
         capabilities.append(
             CodeMode(
