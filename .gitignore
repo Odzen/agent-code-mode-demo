@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.fastapicloud/
+.DS_Store
+frontend/node_modules/
+frontend/dist/

@@ -1,0 +1,88 @@
+:root {
+  font-family: "Avenir Next", Avenir, ui-sans-serif, system-ui, sans-serif;
+  --ink: #172b42;
+  --muted: #4d6070;
+  --line: #d9e1de;
+  --canvas: #f4f6f3;
+  --teal: #0e6357;
+  --teal-soft: #e2f0eb;
+  --clay: #91452f;
+  --clay-soft: #faeee8;
+}
+
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); }
+.lab { max-width: 1152px; margin: 0 auto; padding: 0 32px; }
+.lab-nav { display: flex; align-items: center; justify-content: space-between; min-height: 64px; border-bottom: 1px solid var(--line); }
+.wordmark, .lab-nav a { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 650; }
+.wordmark svg { color: var(--teal); }
+.lab-nav a { color: var(--muted); }
+.lab-nav a:hover { color: var(--ink); text-decoration: underline; }
+.intro { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 34px 0 24px; }
+.intro h1 { margin: 0; font-size: clamp(35px, 5vw, 56px); line-height: 1.05; letter-spacing: -.055em; font-weight: 700; }
+.intro p { color: var(--muted); font-size: 16px; margin: 15px 0 0; max-width: 53ch; }
+.dataset { border-color: var(--line); background: #fff; color: var(--muted); flex: none; height: 29px; padding: 0 10px; }
+
+.composer { padding: 16px 18px 13px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
+.composer-top, .composer-body { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.composer-top label { font-size: 14px; font-weight: 700; }
+.composer-body { margin-top: 10px; align-items: stretch; }
+.composer textarea { min-height: 52px; padding: 13px 14px; resize: vertical; font-size: 15px; }
+.mode-picker { background: var(--canvas); padding: 3px; border-radius: 10px; display: flex; gap: 2px; }
+.mode-picker button { height: 27px; }
+.mode-picker button[aria-pressed=true] { background: #fff; box-shadow: 0 1px 3px #172b421a; }
+button.submit { min-width: 108px; height: auto; }
+button.submit[data-variant=default] { background: var(--ink); color: #fff; }
+button.submit[data-variant=default]:hover { background: #2b465f; }
+.composer-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.provider-settings { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin: 12px 0; }
+.provider-settings label { display: grid; gap: 4px; font-size: 12px; font-weight: 650; }
+.provider-settings input, .provider-settings select { border: 1px solid var(--line); border-radius: 8px; min-height: 37px; padding: 7px 10px; background: #fff; font: inherit; font-weight: 500; width: 100%; }
+.provider-settings input:focus-visible, .provider-settings select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+.comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; margin-top: 15px; }
+.chat { --accent: var(--clay); --accent-soft: var(--clay-soft); border: 1px solid var(--line); border-radius: 15px; background: #fff; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.chat[data-approach=code-mode] { --accent: var(--teal); --accent-soft: var(--teal-soft); }
+.chat-header { display: flex; align-items: center; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); }
+.chat-icon { width: 39px; height: 39px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 10px; flex: none; }
+.chat-header h2 { margin: 0; font-size: 17px; font-weight: 750; letter-spacing: -.02em; }
+.chat-header p { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+.chat-content { display: flex; flex: 1; flex-direction: column; align-items: start; gap: 12px; padding: 16px; min-height: 188px; }
+.empty { display: grid; place-items: center; align-content: center; gap: 8px; flex: 1; width: 100%; text-align: center; color: var(--muted); font-size: 13px; }
+.empty svg { color: var(--accent); }
+.message { border-radius: 11px; padding: 10px 12px; font-size: 14px; line-height: 1.55; max-width: 100%; overflow-wrap: anywhere; }
+.question { align-self: end; background: #eef2f5; max-width: 87%; }
+.answer { background: var(--accent-soft); }
+.answer p { margin: 0; }
+.answer p + p, .answer ul, .answer ol { margin-top: 6px; }
+.answer ul, .answer ol { padding-left: 20px; }
+.answer ul { list-style: disc; }
+.answer ol { list-style: decimal; }
+.trace { width: 100%; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; overflow: hidden; }
+.trace summary { display: flex; align-items: center; gap: 7px; padding: 8px 10px; cursor: pointer; color: var(--muted); list-style: none; }
+.trace summary::-webkit-details-marker { display: none; }
+.trace-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.trace[open] .chevron { transform: rotate(180deg); }
+.trace ol { list-style: decimal; margin: 0; padding: 8px 10px 8px 32px; border-top: 1px solid var(--line); }
+.trace li { padding: 4px 0; }
+.trace li div { display: flex; flex-wrap: wrap; gap: 6px; }
+.trace li span { color: var(--muted); }
+.trace pre { overflow-x: auto; padding: 8px; margin: 6px 0 0; border-radius: 6px; background: var(--canvas); font-size: 11px; line-height: 1.5; }
+.metrics { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin: 0; }
+.metrics div { flex: 1; min-width: 78px; padding: 9px 12px; }
+.metrics div + div { border-left: 1px solid var(--line); }
+.metrics dt { font-size: 11px; color: var(--muted); }
+.metrics dd { margin: 2px 0 0; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.running { color: var(--muted); font-size: 12px; }
+.run-error { font-size: 13px; color: #a12d32; }
+.lab-footer { display: flex; justify-content: space-between; gap: 14px; margin: 16px 0 23px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 680px) {
+  .lab { padding: 0 16px; }
+  .lab-nav { min-height: 52px; }
+  .intro { align-items: start; flex-direction: column; gap: 12px; margin: 24px 0 16px; }
+  .comparison { grid-template-columns: 1fr; }
+  .composer { padding: 12px; }
+  .provider-settings { grid-template-columns: 1fr; }
+  .composer-body { flex-direction: column; }
+  button.submit { height: 38px; }
+}
