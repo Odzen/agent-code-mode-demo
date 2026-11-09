@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from app.agents import DATA_TOOL_NAMES
 from app.main import HF_MODEL, HF_ROUTER, app
 from scripted_model import EXAMPLE_PROMPT, example_model
 
@@ -21,7 +22,7 @@ class ComparisonTests(unittest.TestCase):
     @patch.dict("os.environ", {"HF_TOKEN": ""})
     def test_agent_runs_require_a_server_token(self):
         with TestClient(app) as client:
-            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": False})
+            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": False, "tools": DATA_TOOL_NAMES})
             response = client.post(
                 "/api/run", json={"approach": "tool-calling", "prompt": EXAMPLE_PROMPT}
             )
@@ -31,7 +32,7 @@ class ComparisonTests(unittest.TestCase):
     @patch("app.main.OpenAIChatModel", side_effect=lambda *_args, **_kwargs: example_model())
     def test_same_answer_and_pages_with_less_model_coordination(self, model):
         with TestClient(app) as client:
-            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": True})
+            self.assertEqual(client.get("/api/config").json(), {"model": HF_MODEL, "ready": True, "tools": DATA_TOOL_NAMES})
             runs = {}
             for approach in ("tool-calling", "code-mode"):
                 response = client.post(

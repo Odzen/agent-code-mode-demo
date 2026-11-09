@@ -33,12 +33,16 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
 .empty { display: grid; place-items: center; align-content: center; gap: 8px; min-height: 188px; text-align: center; color: var(--muted-foreground); font-size: 13px; padding: 16px; }
 .empty svg { color: var(--panel-ink); }
 .question { background: var(--secondary); }
-.answer { background: var(--panel-fill); }
+.answer { background: var(--panel-fill); overflow-x: auto; }
 .answer p { margin: 0; }
 .answer p + p, .answer ul, .answer ol { margin-top: 6px; }
 .answer ul, .answer ol { padding-left: 20px; }
 .answer ul { list-style: disc; }
 .answer ol { list-style: decimal; }
+.answer a { text-decoration: underline; overflow-wrap: anywhere; }
+.answer table { margin: 8px 0; border-collapse: collapse; font-size: 12px; }
+.answer th, .answer td { padding: 4px 8px; border: 1px solid var(--border); }
+.answer th { background: var(--trace-surface); text-align: left; }
 .trace { width: 100%; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; overflow: hidden; }
 .trace summary { display: flex; align-items: center; gap: 7px; padding: 8px 10px; cursor: pointer; color: var(--muted-foreground); list-style: none; }
 .trace summary::-webkit-details-marker { display: none; }

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { ArrowUp, Braces, ChevronDown, ExternalLink, ListTree, Square, Ticket } from 'lucide-react'
 import { createParser } from 'eventsource-parser'
 import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Badge } from '@/components/ui/badge'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
@@ -20,10 +21,12 @@ const examples = [
   { label: 'By customer', prompt: 'Read all pages and rank customers by their number of overdue tickets.' },
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
+  { label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
+  { label: 'Tickets + GitHub', prompt: 'Read all pages and group overdue password reset tickets by customer. Then search public django-allauth issues for password reset email delivery and link one relevant issue separately.' },
 ]
 const approaches = [
   { id: 'tool-calling', name: 'Tool Calling', description: 'The model receives each page and decides what to call next.', Icon: ListTree },
-  { id: 'code-mode', name: 'Code Mode', description: 'Python processes ticket pages inside Monty and returns the result.', Icon: Braces },
+  { id: 'code-mode', name: 'Code Mode', description: 'Python combines tool results inside Monty and returns the result.', Icon: Braces },
 ] as const
 
 type Approach = typeof approaches[number]['id']
@@ -39,8 +42,8 @@ function emptyPanels(): Panels {
   }
 }
 
-function Chat({ approach, panel, question, running }: {
-  approach: typeof approaches[number]; panel: Panel; question: string; running: boolean
+function Chat({ approach, panel, question, running, tools }: {
+  approach: typeof approaches[number]; panel: Panel; question: string; running: boolean; tools: string[]
 }) {
   const { Icon } = approach
   const result = panel.result
@@ -53,7 +56,7 @@ function Chat({ approach, panel, question, running }: {
       <div className="tool-catalog" role="group" aria-label="Available tools">
         <span>Tools</span>
         {approach.id === 'code-mode' && <><code>run_code</code><span>Inside sandbox</span></>}
-        <code>list_overdue_tickets</code>
+        {tools.map((tool) => <code key={tool}>{tool}</code>)}
       </div>
       <dl className="metrics">
         <div><dt>Model requests</dt><dd>{result?.model_requests ?? '–'}</dd></div>
@@ -100,7 +103,7 @@ function Chat({ approach, panel, question, running }: {
                       )}
                       {panel.text && (
                         <Bubble variant="muted">
-                          <BubbleContent className="answer"><Markdown>{panel.text}</Markdown></BubbleContent>
+                          <BubbleContent className="answer"><Markdown remarkPlugins={[remarkGfm]}>{panel.text}</Markdown></BubbleContent>
                         </Bubble>
                       )}
                       {panel.error && <p role="alert" className="run-error">{panel.error}</p>}
@@ -124,7 +127,7 @@ function Chat({ approach, panel, question, running }: {
 }
 
 function App() {
-  const [config, setConfig] = useState<{ model: string; ready: boolean }>()
+  const [config, setConfig] = useState<{ model: string; ready: boolean; tools: string[] }>()
   const [prompt, setPrompt] = useState(examples[0].prompt)
   const [question, setQuestion] = useState('')
   const [panels, setPanels] = useState<Panels>(emptyPanels)
@@ -160,7 +163,7 @@ function App() {
       let finished = false
       const parser = createParser({
         onEvent({ event, data }) {
-          if (event === 'tool') {
+          if (event === 'tool' || event === 'activity') {
             const tool: Step = JSON.parse(data)
             updatePanel(approach, (panel) => ({ ...panel, trace: [...panel.trace, tool] }))
           } else if (event === 'page') {
@@ -273,7 +276,7 @@ function App() {
       </form>
       <section className="comparison" aria-label="Agent comparison">
         {approaches.map((approach) => (
-          <Chat key={approach.id} approach={approach} panel={panels[approach.id]} question={question} running={!!controller} />
+          <Chat key={approach.id} approach={approach} panel={panels[approach.id]} question={question} running={!!controller} tools={config?.tools ?? []} />
         ))}
       </section>
       <footer className="lab-footer">

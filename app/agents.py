@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -6,12 +7,15 @@ from pydantic_ai import Agent, CustomEvent, RunContext
 from pydantic_ai.models import Model
 from pydantic_ai_harness import CodeMode
 
-from app.tickets import TicketPage
+from app.tickets import CUSTOMERS, TicketPage
 
 Approach = Literal["tool-calling", "code-mode"]
 INSTRUCTIONS = (
     "Answer questions about the synthetic overdue ticket dataset. "
     "Follow pagination until the last page when answering about the whole dataset. "
+    "Use the customer profile tool when a question asks for plans or SLAs. "
+    "Use public issue search for technical references, cite the returned links, and keep "
+    "public findings separate from the synthetic tickets. "
     "Report the results concisely and state if the data you checked is incomplete."
 )
 
@@ -28,6 +32,12 @@ class PageRead(CustomEvent):
     items: int
 
 
+@dataclass(kw_only=True)
+class ToolActivity(CustomEvent):
+    label: str
+    detail: str
+
+
 async def list_overdue_tickets(ctx: RunContext[RunDeps], cursor: int | None = None) -> dict:
     """Read one page of overdue tickets. Pass the previous next_cursor for the next page."""
     response = await ctx.deps.tickets.get("/api/tickets", params={"cursor": cursor or 0})
@@ -38,12 +48,54 @@ async def list_overdue_tickets(ctx: RunContext[RunDeps], cursor: int | None = No
     return page.model_dump()
 
 
+async def get_customer_profile(ctx: RunContext[RunDeps], customer: str) -> dict:
+    """Look up a synthetic customer by name and return their plan and response SLA in hours."""
+    name = customer.strip().casefold()
+    for profile, _ in CUSTOMERS:
+        if profile.name.casefold() == name:
+            await ctx.emit(ToolActivity(label="get_customer_profile", detail=profile.name))
+            return profile.model_dump()
+    return {"error": "Customer not found."}
+
+
+async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> dict:
+    """Search public django-allauth issues on GitHub using technical keywords. Returns titles and links."""
+    keywords = " ".join(re.findall(r"[\w-]+", query[:120]))
+    if not keywords:
+        return {"error": "Provide technical search keywords."}
+
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            response = await client.get(
+                "https://api.github.com/search/issues",
+                params={"q": f"{keywords} repo:pennersr/django-allauth is:issue", "per_page": 3},
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "agent-code-mode-demo"},
+            )
+            response.raise_for_status()
+            items = response.json()["items"]
+    except (httpx.HTTPError, ValueError, KeyError):
+        await ctx.emit(ToolActivity(label="search_public_issues", detail="GitHub unavailable"))
+        return {"error": "Public issue search is unavailable. Continue with any local data."}
+
+    issues = [
+        {"title": item["title"], "url": item["html_url"], "state": item["state"]}
+        for item in items
+        if item["html_url"].startswith("https://github.com/pennersr/django-allauth/issues/")
+    ]
+    await ctx.emit(ToolActivity(label="search_public_issues", detail=f"{len(issues)} GitHub results"))
+    return {"issues": issues}
+
+
+DATA_TOOLS = (list_overdue_tickets, get_customer_profile, search_public_issues)
+DATA_TOOL_NAMES = [tool.__name__ for tool in DATA_TOOLS]
+
+
 def build_agent(model: Model, approach: Approach) -> Agent[RunDeps, str]:
     capabilities = []
     if approach == "code-mode":
         capabilities.append(
             CodeMode(
-                tools=["list_overdue_tickets"],
+                tools=DATA_TOOL_NAMES,
                 max_tool_calls=12,
                 resource_limits={"max_duration_secs": 3, "max_memory": 64 * 1024 * 1024},
             )
@@ -52,6 +104,6 @@ def build_agent(model: Model, approach: Approach) -> Agent[RunDeps, str]:
         model,
         deps_type=RunDeps,
         instructions=INSTRUCTIONS,
-        tools=[list_overdue_tickets],
+        tools=DATA_TOOLS,
         capabilities=capabilities,
     )

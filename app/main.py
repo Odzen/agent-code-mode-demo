@@ -25,7 +25,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
 from pydantic_ai_harness.code_mode import RunCodeCallPart
 
-from app.agents import Approach, PageRead, RunDeps, build_agent
+from app.agents import DATA_TOOL_NAMES, Approach, PageRead, RunDeps, ToolActivity, build_agent
 from app.tickets import router as tickets_router
 
 HF_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017:novita"
@@ -45,8 +45,8 @@ def configured_token() -> str:
 
 
 @app.get("/api/config")
-async def config() -> dict[str, str | bool]:
-    return {"model": HF_MODEL, "ready": bool(configured_token())}
+async def config() -> dict[str, str | bool | list[str]]:
+    return {"model": HF_MODEL, "ready": bool(configured_token()), "tools": DATA_TOOL_NAMES}
 
 
 def require_token() -> str:
@@ -90,6 +90,8 @@ async def run(
                             "name": part.tool_name,
                             "code": part.code if isinstance(part, RunCodeCallPart) else None,
                         })
+                    elif isinstance(event, ToolActivity):
+                        yield ServerSentEvent(event="activity", data={"name": event.label, "detail": event.detail})
                     elif isinstance(event, PageRead):
                         yield ServerSentEvent(event="page", data={"cursor": event.cursor, "items": event.items})
                     elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):

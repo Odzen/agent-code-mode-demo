@@ -18,13 +18,19 @@ class TicketPage(BaseModel):
     next_cursor: int | None
 
 
+class CustomerProfile(BaseModel):
+    name: str
+    plan: str
+    response_sla_hours: int
+
+
 CUSTOMERS = (
-    ("Aster Labs", 6),
-    ("Ember Works", 5),
-    ("Juniper Studio", 3),
-    ("Signal House", 2),
-    ("Cedar Systems", 1),
-    ("Northstar Print", 1),
+    (CustomerProfile(name="Aster Labs", plan="Enterprise", response_sla_hours=4), 6),
+    (CustomerProfile(name="Ember Works", plan="Pro", response_sla_hours=12), 5),
+    (CustomerProfile(name="Juniper Studio", plan="Enterprise", response_sla_hours=4), 3),
+    (CustomerProfile(name="Signal House", plan="Pro", response_sla_hours=12), 2),
+    (CustomerProfile(name="Cedar Systems", plan="Starter", response_sla_hours=24), 1),
+    (CustomerProfile(name="Northstar Print", plan="Starter", response_sla_hours=24), 1),
 )
 SUBJECTS = (
     "Invoice totals do not match the account summary",
@@ -38,7 +44,7 @@ TICKETS = tuple(
         subject=SUBJECTS[index % len(SUBJECTS)],
     )
     for index, customer in enumerate(
-        customer for customer, count in CUSTOMERS for _ in range(count)
+        profile.name for profile, count in CUSTOMERS for _ in range(count)
     )
 )
 
