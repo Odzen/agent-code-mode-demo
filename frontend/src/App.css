@@ -52,7 +52,11 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
 .trace li { padding: 4px 0; }
 .trace li > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .trace li span { color: var(--muted-foreground); }
-.trace pre { overflow-x: auto; padding: 8px; margin: 6px 0 0; border-radius: 6px; background: var(--trace-surface); font-size: 11px; line-height: 1.5; }
+.trace pre { overflow: auto; max-height: 220px; padding: 8px; margin: 4px 0 0; border-radius: 6px; background: var(--trace-surface); font-size: 11px; line-height: 1.5; }
+.trace-payload { margin: 6px 0; min-width: 0; }
+.trace .step-status, .trace .trace-output-label { margin-left: auto; font-size: 11px; }
+.trace .step-status[data-outcome=success] { color: var(--primary-ink); }
+.trace .step-status:is([data-outcome=failed], [data-outcome=retried]) { color: var(--destructive); }
 .metrics { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 0; }
 .metrics div { flex: 1; min-width: 78px; padding: 9px 12px; }
 .metrics div + div { border-left: 1px solid var(--border); }
@@ -67,7 +71,7 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
   .comparison { grid-template-columns: 1fr; }
 }
 
-.trace .sandbox-step > summary { flex-wrap: wrap; padding: 0; }
-.sandbox-step > summary > svg { transform: rotate(-90deg); }
-.sandbox-step[open] > summary > svg { transform: rotate(0); }
+.trace .trace-step > summary { flex-wrap: wrap; padding: 2px 0; }
+.trace-step > summary > svg { transform: rotate(-90deg); }
+.trace-step[open] > summary > svg { transform: rotate(0); }
 .sandbox-calls { margin: 6px 0; padding-left: 12px; border-left: 2px solid var(--border); list-style: none; }

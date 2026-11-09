@@ -13,7 +13,7 @@ npm --prefix frontend run build
 uv run --env-file .env fastapi dev
 ```
 
-Open `http://127.0.0.1:8000` and click **Run both**. Expand **Execution trace** to see the API calls and the Python passed to Monty.
+Open `http://127.0.0.1:8000/?example=enterprise-slas` to start with the Enterprise SLAs question. Run both agents and expand **Execution trace** to see each tool's output and how Monty ran the generated Python.
 
 Both agents use `deepseek-ai/DeepSeek-V4.1-Flash-1017:novita` through Hugging Face Inference Providers. The server supplies the token for both runs.
 

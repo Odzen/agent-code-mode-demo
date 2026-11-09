@@ -21,7 +21,7 @@ const examples = [
   { label: 'By customer', prompt: 'Read all pages and rank customers by their number of overdue tickets.' },
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
-  { label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
+  { id: 'enterprise-slas', label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
   { label: 'Code Mode issues', prompt: 'Search public issues in pydantic/pydantic-ai once, using the combined query run_code Monty. From those results, show two relevant issues with their titles, open or closed status, and GitHub links.' },
 ]
 const approaches = [
@@ -31,7 +31,14 @@ const approaches = [
 
 type Approach = typeof approaches[number]['id']
 type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null; output_tokens?: number; elapsed_ms?: number }
-type Step = { name: string; call_id?: string | null; parent_id?: string | null; detail?: string; code?: string | null }
+const outcomeLabels = {
+  success: 'Completed', failed: 'Failed', denied: 'Denied', interrupted: 'Interrupted', retried: 'Retry requested',
+} as const
+
+type Step = {
+  name: string; call_id?: string | null; parent_id?: string | null; detail?: string;
+  code?: string | null; sandbox?: boolean; outcome?: keyof typeof outcomeLabels; output?: unknown;
+}
 type Panel = { text: string; trace: Step[]; result?: Result; error?: string }
 type Panels = Record<Approach, Panel>
 
@@ -40,6 +47,49 @@ function emptyPanels(): Panels {
     'tool-calling': { text: '', trace: [] },
     'code-mode': { text: '', trace: [] },
   }
+}
+
+function TraceStep({ step, nested = [], running }: { step: Step; nested?: Step[]; running: boolean }) {
+  const isSandbox = step.sandbox || !!step.code || nested.length > 0
+  const status = step.outcome ? outcomeLabels[step.outcome] : running ? 'Running…' : 'No result recorded'
+  const showStatus = isSandbox || step.outcome !== 'success'
+  const label = <>
+    <code>{step.name}</code>
+    {step.detail && <span>{step.detail}</span>}
+    {isSandbox && <span>{nested.length} {nested.length === 1 ? 'call' : 'calls'} inside sandbox</span>}
+    {showStatus && <span className="step-status" data-outcome={step.outcome}>{status}</span>}
+  </>
+
+  if (!isSandbox && step.output === undefined) return <div>{label}</div>
+
+  return (
+    <details className="trace-step">
+      <summary>
+        <ChevronDown size={13} aria-hidden="true" />
+        {label}
+        {!isSandbox && step.output !== undefined && <span className="trace-output-label">Output</span>}
+      </summary>
+      {step.output !== undefined && (
+        <div className="trace-payload">
+          <span>{isSandbox ? 'Output sent to the model' : 'Tool output'}</span>
+          <pre aria-label="Tool output" tabIndex={0}><code>{typeof step.output === 'string' ? step.output : JSON.stringify(step.output, null, 2)}</code></pre>
+        </div>
+      )}
+      {nested.length > 0 && (
+        <ol className="sandbox-calls" aria-label="Tool calls inside sandbox">
+          {nested.map((child, index) => (
+            <li key={child.call_id ?? index}><TraceStep step={child} running={running} /></li>
+          ))}
+        </ol>
+      )}
+      {step.code && (
+        <div className="trace-payload">
+          <span>Generated Python</span>
+          <pre aria-label="Generated Python" tabIndex={0}><code>{step.code}</code></pre>
+        </div>
+      )}
+    </details>
+  )
 }
 
 function Chat({ approach, panel, question, running, tools }: {
@@ -101,27 +151,7 @@ function Chat({ approach, panel, question, running, tools }: {
                               const nestedSteps = panel.trace.filter((child) => child.parent_id && child.parent_id === step.call_id)
                               return (
                                 <li key={step.call_id ?? index}>
-                                  {step.code || nestedSteps.length > 0 ? (
-                                    <details className="sandbox-step">
-                                      <summary>
-                                        <ChevronDown size={13} aria-hidden="true" />
-                                        <code>{step.name}</code>
-                                        <span>{nestedSteps.length} {nestedSteps.length === 1 ? 'call' : 'calls'} inside sandbox</span>
-                                      </summary>
-                                      {nestedSteps.length > 0 && (
-                                        <ol className="sandbox-calls" aria-label="Tool calls inside sandbox">
-                                          {nestedSteps.map((child, childIndex) => (
-                                            <li key={child.call_id ?? childIndex}>
-                                              <div><code>{child.name}</code>{child.detail && <span>{child.detail}</span>}</div>
-                                            </li>
-                                          ))}
-                                        </ol>
-                                      )}
-                                      {step.code && <pre aria-label="Generated Python"><code>{step.code}</code></pre>}
-                                    </details>
-                                  ) : (
-                                    <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
-                                  )}
+                                  <TraceStep step={step} nested={nestedSteps} running={running && !panel.error && !result} />
                                 </li>
                               )
                             })}
@@ -155,7 +185,10 @@ function Chat({ approach, panel, question, running, tools }: {
 
 function App() {
   const [config, setConfig] = useState<{ model: string; ready: boolean; tools: string[] }>()
-  const [prompt, setPrompt] = useState(examples[0].prompt)
+  const [prompt, setPrompt] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get('example')
+    return examples.find((example) => requested && example.id === requested)?.prompt ?? examples[0].prompt
+  })
   const [question, setQuestion] = useState('')
   const [panels, setPanels] = useState<Panels>(emptyPanels)
   const [controller, setController] = useState<AbortController>()
@@ -200,12 +233,12 @@ function App() {
       let finished = false
       const parser = createParser({
         onEvent({ event, data }) {
-          if (event === 'tool' || event === 'activity') {
+          if (event === 'tool' || event === 'activity' || event === 'tool_result') {
             const tool: Step = JSON.parse(data)
             recordStep(tool)
           } else if (event === 'page') {
-            const { cursor, items, call_id, parent_id } = JSON.parse(data)
-            recordStep({ name: 'list_overdue_tickets', call_id, parent_id, detail: `cursor ${cursor ?? 0}, ${items} tickets` })
+            const { cursor, items, ...step } = JSON.parse(data)
+            recordStep({ ...step, name: 'list_overdue_tickets', detail: `cursor ${cursor ?? 0}, ${items} tickets` })
           } else if (event === 'text') {
             const text: string = JSON.parse(data)
             updatePanel(approach, (panel) => ({ ...panel, text: panel.text + text }))
@@ -309,6 +342,7 @@ function App() {
         {config?.ready === false && (
           <p role="status" className="composer-note">The demo is waiting for its Hugging Face token.</p>
         )}
+        <p className="composer-note">Run both agents, then open <strong>Execution trace</strong> to compare what each tool returned.</p>
       </form>
       <section className="comparison" aria-label="Agent comparison">
         {approaches.map((approach) => (

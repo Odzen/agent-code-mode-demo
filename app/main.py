@@ -9,10 +9,12 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
+from pydantic_core import to_jsonable_python
 from pydantic_ai import AgentRunResultEvent
 from pydantic_ai.exceptions import AgentRunError, ModelHTTPError
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
+    FunctionToolResultEvent,
     ModelRequest,
     PartDeltaEvent,
     PartStartEvent,
@@ -94,7 +96,25 @@ async def run(
                         yield ServerSentEvent(event="tool", data={
                             "call_id": part.tool_call_id,
                             "name": part.tool_name,
+                            "sandbox": isinstance(part, RunCodeCallPart),
                             "code": part.code if isinstance(part, RunCodeCallPart) else None,
+                        })
+                    elif isinstance(event, FunctionToolResultEvent):
+                        part = event.part
+                        outcome = part.outcome
+                        payload = {"output": to_jsonable_python(part.content)} if outcome == "success" else {}
+                        output = payload.get("output")
+                        if part.tool_name in DATA_TOOL_NAMES and isinstance(output, dict) and "error" in output:
+                            outcome = "failed"
+                        if outcome == "retried" and part.tool_call_id in script_call_ids:
+                            reason = part.model_response_str(wrap_if_error=False).partition(":")[0]
+                            if reason in {"Syntax error in code", "Type error in code", "Runtime error"}:
+                                payload["detail"] = reason
+                        yield ServerSentEvent(event="tool_result", data={
+                            "call_id": part.tool_call_id,
+                            "name": part.tool_name,
+                            "outcome": outcome,
+                            **payload,
                         })
                     elif isinstance(event, (ToolActivity, PageRead)):
                         call_id = event.tool_call_id
@@ -104,6 +124,11 @@ async def run(
                             "call_id": call_id,
                             "parent_id": parent_id if index.isdecimal() and parent_id in script_call_ids else None,
                         }
+                        if trace_ids["parent_id"] is not None:
+                            trace_ids["output"] = to_jsonable_python(event.output)
+                            trace_ids["outcome"] = (
+                                "failed" if isinstance(event.output, dict) and "error" in event.output else "success"
+                            )
                         if isinstance(event, ToolActivity):
                             yield ServerSentEvent(event="activity", data={
                                 **trace_ids, "name": event.label, "detail": event.detail,

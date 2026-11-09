@@ -3,6 +3,8 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from pydantic_ai.messages import ModelRequest, ToolReturnPart
+from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 
 from app.agents import DATA_TOOL_NAMES
 from app.main import HF_MODEL, HF_ROUTER, app
@@ -65,7 +67,39 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual([page["cursor"] for page in code_pages], [None, 6, 12])
         self.assertEqual({page["parent_id"] for page in code_pages}, {code_call["call_id"]})
         self.assertEqual(len({page["call_id"] for page in code_pages}), 3)
+        direct_outputs = [data["output"] for event, data in direct if event == "tool_result"]
+        self.assertEqual(direct_outputs, [page["output"] for page in code_pages])
+        self.assertEqual(direct_outputs[0]["next_cursor"], 6)
+        code_output = next(data for event, data in code if event == "tool_result")
+        self.assertEqual(code_output["call_id"], code_call["call_id"])
+        self.assertEqual(code_output["outcome"], "success")
+        self.assertIn({"customer": "Juniper Studio", "overdue_tickets": 3}, code_output["output"])
         self.assertEqual(
             [data["call_id"] for event, data in direct if event == "page"],
             [data["call_id"] for event, data in direct if event == "tool"],
         )
+
+    @patch.dict("os.environ", {"HF_TOKEN": "test-token"})
+    def test_code_trace_distinguishes_retry_from_success_without_nested_calls(self):
+        async def stream(messages, _info):
+            returns = [
+                part
+                for message in messages if isinstance(message, ModelRequest)
+                for part in message.parts if isinstance(part, ToolReturnPart)
+            ]
+            if len(returns) < 2:
+                code = "if" if not returns else "20 + 22"
+                yield {0: DeltaToolCall(name="run_code", json_args=json.dumps({"code": code}))}
+            else:
+                yield "42"
+
+        with patch("app.main.OpenAIChatModel", return_value=FunctionModel(stream_function=stream)):
+            with TestClient(app) as client:
+                response = client.post("/api/run", json={"approach": "code-mode", "prompt": "Compute 20 + 22."})
+        events = read_events(response.text)
+        self.assertEqual(events[-1][0], "done")
+        outputs = [data for event, data in events if event == "tool_result"]
+        self.assertEqual([output["outcome"] for output in outputs], ["retried", "success"])
+        self.assertIn(outputs[0]["detail"], {"Syntax error in code", "Type error in code"})
+        self.assertEqual(outputs[1]["output"], 42)
+        self.assertFalse(any(event in {"page", "activity"} for event, _ in events))

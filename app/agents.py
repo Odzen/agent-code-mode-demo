@@ -31,12 +31,14 @@ class RunDeps:
 class PageRead(CustomEvent):
     cursor: int | None
     items: int
+    output: TicketPage
 
 
 @dataclass(kw_only=True)
 class ToolActivity(CustomEvent):
     label: str
     detail: str
+    output: CustomerProfile | IssueSearchResult | ToolError
 
 
 class ToolError(TypedDict):
@@ -59,25 +61,26 @@ async def list_overdue_tickets(ctx: RunContext[RunDeps], cursor: int | None = No
     response.raise_for_status()
     page = TicketPage.model_validate(response.json())
     ctx.deps.pages_read += 1
-    await ctx.emit(PageRead(cursor=cursor, items=len(page.items)))
+    await ctx.emit(PageRead(cursor=cursor, items=len(page.items), output=page))
     return page
 
 
 async def get_customer_profile(ctx: RunContext[RunDeps], customer: str) -> CustomerProfile | ToolError:
     """Look up a synthetic customer by name and return their plan and response SLA in hours."""
     name = customer.strip().casefold()
-    for profile, _ in CUSTOMERS:
-        if profile.name.casefold() == name:
-            await ctx.emit(ToolActivity(label="get_customer_profile", detail=profile.name))
-            return profile
-    return {"error": "Customer not found."}
+    profile = next((profile for profile, _ in CUSTOMERS if profile.name.casefold() == name), None)
+    output: CustomerProfile | ToolError = profile if profile else {"error": "Customer not found."}
+    await ctx.emit(ToolActivity(label="get_customer_profile", detail=profile.name if profile else customer, output=output))
+    return output
 
 
 async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> IssueSearchResult | ToolError:
     """Search public Pydantic AI issues on GitHub using technical keywords. Returns titles and links."""
     keywords = " ".join(re.findall(r"[\w-]+", query[:120]))
     if not keywords:
-        return {"error": "Provide technical search keywords."}
+        output: IssueSearchResult | ToolError = {"error": "Provide technical search keywords."}
+        await ctx.emit(ToolActivity(label="search_public_issues", detail="Missing keywords", output=output))
+        return output
 
     try:
         async with httpx.AsyncClient(timeout=8) as client:
@@ -89,16 +92,18 @@ async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> IssueSea
             response.raise_for_status()
             items = response.json()["items"]
     except (httpx.HTTPError, ValueError, KeyError):
-        await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · GitHub unavailable"))
-        return {"error": "Public issue search is unavailable. Continue with any local data."}
+        output = {"error": "Public issue search is unavailable. Continue with any local data."}
+        await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · GitHub unavailable", output=output))
+        return output
 
     issues: list[PublicIssue] = [
         {"title": item["title"], "url": item["html_url"], "state": item["state"]}
         for item in items
         if item["html_url"].startswith(f"https://github.com/{ISSUE_REPO}/issues/")
     ]
-    await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · {len(issues)} GitHub results"))
-    return {"issues": issues}
+    output = {"issues": issues}
+    await ctx.emit(ToolActivity(label="search_public_issues", detail=f"“{keywords}” · {len(issues)} GitHub results", output=output))
+    return output
 
 
 DATA_TOOLS = (list_overdue_tickets, get_customer_profile, search_public_issues)
