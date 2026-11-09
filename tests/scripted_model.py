@@ -45,11 +45,11 @@ async def scripted_stream(
         rows = content["result"] if isinstance(content, dict) else content
         counts = {row["customer"]: row["overdue_tickets"] for row in rows}
     else:
-        cursor = returns[-1].content["next_cursor"] if returns else 0
+        cursor = returns[-1].model_response_object()["next_cursor"] if returns else 0
         if cursor is not None:
             yield {0: DeltaToolCall(name=tool, json_args=json.dumps({"cursor": cursor}))}
             return
-        counts = Counter(ticket["customer"] for page in returns for ticket in page.content["items"])
+        counts = Counter(ticket["customer"] for page in returns for ticket in page.model_response_object()["items"])
 
     yield "Customers with at least three overdue tickets:\n\n"
     for customer, count in sorted(counts.items()):
