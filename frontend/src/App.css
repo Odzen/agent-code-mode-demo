@@ -52,8 +52,12 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
 .trace li { padding: 4px 0; }
 .trace li > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .trace li span { color: var(--muted-foreground); }
-.trace pre { overflow: auto; max-height: 220px; padding: 8px; margin: 4px 0 0; border-radius: 6px; background: var(--trace-surface); font-size: 11px; line-height: 1.5; }
-.trace-payload { margin: 6px 0; min-width: 0; }
+.trace pre { overflow: auto; max-height: 220px; padding: 10px; margin: 6px 0 0; border-radius: 6px; background: var(--trace-surface); font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sandbox-inspector { margin: 6px 0 0; }
+.sandbox-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+.sandbox-tabs button { padding: 3px 8px; border-radius: 5px; color: var(--muted-foreground); cursor: pointer; }
+.sandbox-tabs button[aria-selected=true] { background: var(--panel-fill); color: var(--foreground); }
+.sandbox-inspector [role=tabpanel] > p { margin: 8px 0 0; color: var(--muted-foreground); }
 .trace .step-status, .trace .trace-output-label { margin-left: auto; font-size: 11px; }
 .trace .step-status[data-outcome=success] { color: var(--primary-ink); }
 .trace .step-status:is([data-outcome=failed], [data-outcome=retried]) { color: var(--destructive); }

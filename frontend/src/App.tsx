@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Tabs } from '@base-ui/react/tabs'
 import { ArrowUp, Braces, ChevronDown, ExternalLink, ListTree, Square, Ticket } from 'lucide-react'
 import { createParser } from 'eventsource-parser'
 import Markdown from 'react-markdown'
@@ -49,6 +50,11 @@ function emptyPanels(): Panels {
   }
 }
 
+function TraceOutput({ output, label }: { output: unknown; label: string }) {
+  const value = typeof output === 'string' ? output : JSON.stringify(output, null, 2)
+  return <pre aria-label={label} tabIndex={0}><code>{value}</code></pre>
+}
+
 function TraceStep({ step, nested = [], running }: { step: Step; nested?: Step[]; running: boolean }) {
   const isSandbox = step.sandbox || !!step.code || nested.length > 0
   const status = step.outcome ? outcomeLabels[step.outcome] : running ? 'Running…' : 'No result recorded'
@@ -69,24 +75,33 @@ function TraceStep({ step, nested = [], running }: { step: Step; nested?: Step[]
         {label}
         {!isSandbox && step.output !== undefined && <span className="trace-output-label">Output</span>}
       </summary>
-      {step.output !== undefined && (
-        <div className="trace-payload">
-          <span>{isSandbox ? 'Output sent to the model' : 'Tool output'}</span>
-          <pre aria-label="Tool output" tabIndex={0}><code>{typeof step.output === 'string' ? step.output : JSON.stringify(step.output, null, 2)}</code></pre>
-        </div>
-      )}
-      {nested.length > 0 && (
-        <ol className="sandbox-calls" aria-label="Tool calls inside sandbox">
-          {nested.map((child, index) => (
-            <li key={child.call_id ?? index}><TraceStep step={child} running={running} /></li>
-          ))}
-        </ol>
-      )}
-      {step.code && (
-        <div className="trace-payload">
-          <span>Generated Python</span>
-          <pre aria-label="Generated Python" tabIndex={0}><code>{step.code}</code></pre>
-        </div>
+      {isSandbox ? (
+        <Tabs.Root className="sandbox-inspector" defaultValue="python">
+          <Tabs.List className="sandbox-tabs" aria-label="Sandbox details">
+            <Tabs.Tab value="python">Python</Tabs.Tab>
+            <Tabs.Tab value="result">Model output</Tabs.Tab>
+            <Tabs.Tab value="tools">Tool calls ({nested.length})</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="python">
+            {step.code ? <TraceOutput label="Generated Python" output={step.code} /> : <p>No Python recorded.</p>}
+          </Tabs.Panel>
+          <Tabs.Panel value="result">
+            {step.output !== undefined
+              ? <TraceOutput label="Output sent to the model" output={step.output} />
+              : <p>{step.outcome === 'retried' ? step.detail || 'Retry requested.' : 'No output recorded yet.'}</p>}
+          </Tabs.Panel>
+          <Tabs.Panel value="tools">
+            {nested.length > 0 ? (
+              <ol className="sandbox-calls" aria-label="Tool calls inside sandbox">
+                {nested.map((child, index) => (
+                  <li key={child.call_id ?? index}><TraceStep step={child} running={running} /></li>
+                ))}
+              </ol>
+            ) : <p>No tool calls recorded.</p>}
+          </Tabs.Panel>
+        </Tabs.Root>
+      ) : (
+        <TraceOutput label="Tool output" output={step.output} />
       )}
     </details>
   )
