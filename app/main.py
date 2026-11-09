@@ -80,6 +80,7 @@ async def run(
             )
             agent = build_agent(model, body.approach)
             deps = RunDeps(tickets=client)
+            script_call_ids: set[str] = set()
             async with agent.run_stream_events(
                 body.prompt.strip(),
                 deps=deps,
@@ -88,14 +89,29 @@ async def run(
                 async for event in events:
                     if isinstance(event, FunctionToolCallEvent):
                         part = event.part
+                        if isinstance(part, RunCodeCallPart):
+                            script_call_ids.add(part.tool_call_id)
                         yield ServerSentEvent(event="tool", data={
+                            "call_id": part.tool_call_id,
                             "name": part.tool_name,
                             "code": part.code if isinstance(part, RunCodeCallPart) else None,
                         })
-                    elif isinstance(event, ToolActivity):
-                        yield ServerSentEvent(event="activity", data={"name": event.label, "detail": event.detail})
-                    elif isinstance(event, PageRead):
-                        yield ServerSentEvent(event="page", data={"cursor": event.cursor, "items": event.items})
+                    elif isinstance(event, (ToolActivity, PageRead)):
+                        call_id = event.tool_call_id
+                        # Code Mode names nested calls <run_code call id>__<index>.
+                        parent_id, _, index = (call_id or "").rpartition("__")
+                        trace_ids = {
+                            "call_id": call_id,
+                            "parent_id": parent_id if index.isdecimal() and parent_id in script_call_ids else None,
+                        }
+                        if isinstance(event, ToolActivity):
+                            yield ServerSentEvent(event="activity", data={
+                                **trace_ids, "name": event.label, "detail": event.detail,
+                            })
+                        else:
+                            yield ServerSentEvent(event="page", data={
+                                **trace_ids, "cursor": event.cursor, "items": event.items,
+                            })
                     elif isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
                         yield ServerSentEvent(event="text", data=event.part.content)
                     elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):

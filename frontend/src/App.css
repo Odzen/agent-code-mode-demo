@@ -48,9 +48,9 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
 .trace summary::-webkit-details-marker { display: none; }
 .trace-count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .trace[open] .chevron { transform: rotate(180deg); }
-.trace ol { list-style: decimal; margin: 0; padding: 8px 10px 8px 32px; border-top: 1px solid var(--border); }
+.trace-steps { list-style: decimal; margin: 0; padding: 8px 10px 8px 32px; border-top: 1px solid var(--border); }
 .trace li { padding: 4px 0; }
-.trace li div { display: flex; flex-wrap: wrap; gap: 6px; }
+.trace li > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .trace li span { color: var(--muted-foreground); }
 .trace pre { overflow-x: auto; padding: 8px; margin: 6px 0 0; border-radius: 6px; background: var(--trace-surface); font-size: 11px; line-height: 1.5; }
 .metrics { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 0; }
@@ -66,3 +66,8 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
   .lab { padding: 0 16px; }
   .comparison { grid-template-columns: 1fr; }
 }
+
+.trace .sandbox-trace { display: block; border-left: 2px solid var(--border); margin: 6px 0; padding-left: 10px; }
+.sandbox-trace ol { margin: 0; padding: 2px 0 0; list-style: none; }
+.trace .trace-code summary { display: list-item; list-style: revert; padding: 4px 0; }
+.trace .trace-code summary::-webkit-details-marker { display: inline; }

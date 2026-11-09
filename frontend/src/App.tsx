@@ -31,7 +31,7 @@ const approaches = [
 
 type Approach = typeof approaches[number]['id']
 type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null; output_tokens?: number; elapsed_ms?: number }
-type Step = { name: string; detail?: string; code?: string }
+type Step = { name: string; call_id?: string | null; parent_id?: string | null; detail?: string; code?: string | null }
 type Panel = { text: string; trace: Step[]; result?: Result; error?: string }
 type Panels = Record<Approach, Panel>
 
@@ -47,6 +47,7 @@ function Chat({ approach, panel, question, running, tools }: {
 }) {
   const { Icon } = approach
   const result = panel.result
+  const topLevelSteps = panel.trace.filter((step) => !step.parent_id)
   return (
     <article className="chat" data-approach={approach.id} aria-label={approach.name}>
       <header className="chat-header">
@@ -92,16 +93,36 @@ function Chat({ approach, panel, question, running, tools }: {
                           <summary>
                             <ListTree size={15} aria-hidden="true" />
                             <span>Execution trace</span>
-                            <span className="trace-count">{panel.trace.length} steps</span>
+                            <span className="trace-count">{topLevelSteps.length} top-level {topLevelSteps.length === 1 ? 'call' : 'calls'}</span>
                             <ChevronDown className="chevron" size={15} aria-hidden="true" />
                           </summary>
-                          <ol>
-                            {panel.trace.map((step, index) => (
-                              <li key={index}>
-                                <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
-                                {step.code && <pre><code>{step.code}</code></pre>}
-                              </li>
-                            ))}
+                          <ol className="trace-steps">
+                            {topLevelSteps.map((step, index) => {
+                              const nestedSteps = panel.trace.filter((child) => child.parent_id && child.parent_id === step.call_id)
+                              return (
+                                <li key={step.call_id ?? index}>
+                                  <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
+                                  {nestedSteps.length > 0 && (
+                                    <div className="sandbox-trace">
+                                      <span>Inside sandbox · {nestedSteps.length} {nestedSteps.length === 1 ? 'tool call' : 'tool calls'}</span>
+                                      <ol>
+                                        {nestedSteps.map((child, childIndex) => (
+                                          <li key={child.call_id ?? childIndex}>
+                                            <div><code>{child.name}</code>{child.detail && <span>{child.detail}</span>}</div>
+                                          </li>
+                                        ))}
+                                      </ol>
+                                    </div>
+                                  )}
+                                  {step.code && (
+                                    <details className="trace-code">
+                                      <summary>Generated Python</summary>
+                                      <pre><code>{step.code}</code></pre>
+                                    </details>
+                                  )}
+                                </li>
+                              )
+                            })}
                           </ol>
                         </details>
                       )}
@@ -154,6 +175,16 @@ function App() {
   }
 
   async function streamRun(approach: Approach, submitted: string, signal: AbortSignal) {
+    function recordStep(step: Step) {
+      updatePanel(approach, (panel) => {
+        const index = step.call_id ? panel.trace.findIndex((call) => call.call_id === step.call_id) : -1
+        if (index === -1) return { ...panel, trace: [...panel.trace, step] }
+        const trace = [...panel.trace]
+        trace[index] = { ...trace[index], ...step }
+        return { ...panel, trace }
+      })
+    }
+
     try {
       const response = await fetch('/api/run', {
         method: 'POST',
@@ -169,11 +200,10 @@ function App() {
         onEvent({ event, data }) {
           if (event === 'tool' || event === 'activity') {
             const tool: Step = JSON.parse(data)
-            updatePanel(approach, (panel) => ({ ...panel, trace: [...panel.trace, tool] }))
+            recordStep(tool)
           } else if (event === 'page') {
-            const page: { cursor: number | null; items: number } = JSON.parse(data)
-            const step = { name: 'GET /api/tickets', detail: `cursor ${page.cursor ?? 0}, ${page.items} tickets` }
-            updatePanel(approach, (panel) => ({ ...panel, trace: [...panel.trace, step] }))
+            const { cursor, items, call_id, parent_id } = JSON.parse(data)
+            recordStep({ name: 'list_overdue_tickets', call_id, parent_id, detail: `cursor ${cursor ?? 0}, ${items} tickets` })
           } else if (event === 'text') {
             const text: string = JSON.parse(data)
             updatePanel(approach, (panel) => ({ ...panel, text: panel.text + text }))

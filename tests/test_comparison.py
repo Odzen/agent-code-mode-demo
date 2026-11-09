@@ -60,4 +60,12 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(code_result["model_requests"], 2)
         self.assertLess(code_result["tool_output_bytes"], direct_result["tool_output_bytes"])
         self.assertEqual([data["name"] for event, data in code if event == "tool"], ["run_code"])
-        self.assertEqual([data["cursor"] for event, data in code if event == "page"], [None, 6, 12])
+        code_call = next(data for event, data in code if event == "tool")
+        code_pages = [data for event, data in code if event == "page"]
+        self.assertEqual([page["cursor"] for page in code_pages], [None, 6, 12])
+        self.assertEqual({page["parent_id"] for page in code_pages}, {code_call["call_id"]})
+        self.assertEqual(len({page["call_id"] for page in code_pages}), 3)
+        self.assertEqual(
+            [data["call_id"] for event, data in direct if event == "page"],
+            [data["call_id"] for event, data in direct if event == "tool"],
+        )
