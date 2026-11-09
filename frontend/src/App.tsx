@@ -22,7 +22,7 @@ const examples = [
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
   { label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
-  { label: 'Tickets + GitHub', prompt: 'Read all pages and group overdue password reset tickets by customer. Then search public django-allauth issues for password reset email delivery and link one relevant issue separately.' },
+  { label: 'Account + GitHub', prompt: 'Look up Aster Labs’ plan and response SLA. Then find one public django-allauth issue about password reset email delivery and give its link separately.' },
 ]
 const approaches = [
   { id: 'tool-calling', name: 'Tool Calling', description: 'The model receives each page and decides what to call next.', Icon: ListTree },
