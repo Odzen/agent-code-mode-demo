@@ -6,6 +6,7 @@ import Markdown from 'react-markdown'
 
 import { Badge } from '@/components/ui/badge'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
+import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
 import { Message, MessageContent } from '@/components/ui/message'
 import {
@@ -14,10 +15,15 @@ import {
 } from '@/components/ui/message-scroller'
 import './App.css'
 
-const example = 'Which customers have at least three overdue support tickets? Give me the counts.'
+const examples = [
+  { label: '3+ overdue', prompt: 'Which customers have at least three overdue support tickets? Give me the counts.' },
+  { label: 'By customer', prompt: 'Read all pages and rank customers by their number of overdue tickets.' },
+  { label: 'Password resets', prompt: 'Which customers have overdue password reset tickets? List their ticket IDs.' },
+  { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
+]
 const approaches = [
   { id: 'tool-calling', name: 'Tool Calling', description: 'The model receives each page and decides what to call next.', Icon: ListTree },
-  { id: 'code-mode', name: 'Code Mode', description: 'Python reads the pages inside Monty and returns the counts.', Icon: Braces },
+  { id: 'code-mode', name: 'Code Mode', description: 'Python processes ticket pages inside Monty and returns the result.', Icon: Braces },
 ] as const
 
 type Approach = typeof approaches[number]['id']
@@ -44,6 +50,11 @@ function Chat({ approach, panel, question, running }: {
         <div className="chat-icon"><Icon size={21} aria-hidden="true" /></div>
         <div><h2>{approach.name}</h2><p>{approach.description}</p></div>
       </header>
+      <div className="tool-catalog" role="group" aria-label="Available tools">
+        <span>Tools</span>
+        {approach.id === 'code-mode' && <><code>run_code</code><span>Inside sandbox</span></>}
+        <code>list_overdue_tickets</code>
+      </div>
       <dl className="metrics">
         <div><dt>Model requests</dt><dd>{result?.model_requests ?? '–'}</dd></div>
         <div><dt>Ticket pages</dt><dd>{result?.pages_read ?? '–'}</dd></div>
@@ -114,7 +125,7 @@ function Chat({ approach, panel, question, running }: {
 
 function App() {
   const [config, setConfig] = useState<{ model: string; ready: boolean }>()
-  const [prompt, setPrompt] = useState(example)
+  const [prompt, setPrompt] = useState(examples[0].prompt)
   const [question, setQuestion] = useState('')
   const [panels, setPanels] = useState<Panels>(emptyPanels)
   const [controller, setController] = useState<AbortController>()
@@ -207,16 +218,21 @@ function App() {
   return (
     <main className="lab">
       <nav className="lab-nav" aria-label="Lab navigation">
-        <div className="wordmark"><Braces size={19} aria-hidden="true" /> Agent Run Lab</div>
+        <h1 className="wordmark"><Braces size={19} aria-hidden="true" /> Agent Run Lab</h1>
         <a href="https://github.com/Odzen/agent-code-mode-demo"><ExternalLink size={17} aria-hidden="true" /> Source</a>
       </nav>
-      <section className="intro">
-        <div>
-          <h1>Same task. Two ways to run it.</h1>
-          <p>Give both agents the same question. Follow the tool calls and see what reaches the model.</p>
+      <div className="example-bar">
+        <div className="examples" role="group" aria-label="Example questions">
+          <span>Try an example</span>
+          {examples.map(({ label, prompt: examplePrompt }) => (
+            <Button key={label} type="button" size="sm" variant="outline"
+              aria-pressed={prompt === examplePrompt} disabled={!!controller} onClick={() => setPrompt(examplePrompt)}>
+              {label}
+            </Button>
+          ))}
         </div>
         <Badge variant="outline" className="dataset"><Ticket size={15} aria-hidden="true" /> 18 synthetic tickets · 3 pages</Badge>
-      </section>
+      </div>
       <form onSubmit={compare} className="composer">
         <label htmlFor="question" className="sr-only">Ask both agents</label>
         <InputGroup className="rounded-2xl bg-card">
@@ -233,7 +249,7 @@ function App() {
             readOnly={!!controller}
             maxLength={2000}
             rows={2}
-            placeholder="Ask both agents…"
+            placeholder="Ask both agents about the ticket dataset…"
             className="p-3"
           />
           <InputGroupAddon align="block-end">
