@@ -22,7 +22,7 @@ const examples = [
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
   { label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
-  { label: 'Account + GitHub', prompt: 'Look up Aster Labs’ plan and response SLA. Then find one public Pydantic AI issue about streaming tool calls and give its link separately.' },
+  { label: 'Code Mode issues', prompt: 'Search public issues in pydantic/pydantic-ai for run_code and Monty. Show two relevant issues with their titles, open or closed status, and GitHub links.' },
 ]
 const approaches = [
   { id: 'tool-calling', name: 'Tool Calling', description: 'The model receives each page and decides what to call next.', Icon: ListTree },
