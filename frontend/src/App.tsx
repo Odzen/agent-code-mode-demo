@@ -22,7 +22,7 @@ const examples = [
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },
   { label: 'Enterprise SLAs', prompt: 'Read all ticket pages. For customers with at least three overdue tickets, look up their profiles and show the Enterprise accounts with their overdue counts and response SLAs.' },
-  { label: 'Account + GitHub', prompt: 'Look up Aster Labs’ plan and response SLA. Then find one public django-allauth issue about password reset email delivery and give its link separately.' },
+  { label: 'Account + GitHub', prompt: 'Look up Aster Labs’ plan and response SLA. Then find one public Pydantic AI issue about streaming tool calls and give its link separately.' },
 ]
 const approaches = [
   { id: 'tool-calling', name: 'Tool Calling', description: 'The model receives each page and decides what to call next.', Icon: ListTree },
@@ -30,7 +30,7 @@ const approaches = [
 ] as const
 
 type Approach = typeof approaches[number]['id']
-type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null }
+type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null; output_tokens?: number; elapsed_ms?: number }
 type Step = { name: string; detail?: string; code?: string }
 type Panel = { text: string; trace: Step[]; result?: Result; error?: string }
 type Panels = Record<Approach, Panel>
@@ -59,12 +59,16 @@ function Chat({ approach, panel, question, running, tools }: {
         {tools.map((tool) => <code key={tool}>{tool}</code>)}
       </div>
       <dl className="metrics">
+        <div title="Server time from the start of the run to the final response">
+          <dt>Time</dt><dd>{result?.elapsed_ms != null ? `${(result.elapsed_ms / 1000).toFixed(1)} s` : '–'}</dd>
+        </div>
         <div><dt>Model requests</dt><dd>{result?.model_requests ?? '–'}</dd></div>
         <div><dt>Ticket pages</dt><dd>{result?.pages_read ?? '–'}</dd></div>
         <div title="UTF-8 bytes from tool returns added to model history">
           <dt>Tool output bytes</dt><dd>{result?.tool_output_bytes.toLocaleString('en-US') ?? '–'}</dd>
         </div>
         {result?.input_tokens != null && <div><dt>Input tokens</dt><dd>{result.input_tokens.toLocaleString('en-US')}</dd></div>}
+        {result?.output_tokens != null && <div><dt>Output tokens</dt><dd>{result.output_tokens.toLocaleString('en-US')}</dd></div>}
       </dl>
       {question ? (
         <MessageScrollerProvider autoScroll>

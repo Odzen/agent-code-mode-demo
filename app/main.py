@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from os import getenv
 from pathlib import Path
+from time import perf_counter
 from typing import Annotated
 
 import httpx
@@ -62,6 +63,7 @@ async def run(
     request: Request,
     token: Annotated[str, Depends(require_token)],
 ) -> AsyncIterator[ServerSentEvent]:
+    started = perf_counter()
     try:
         async with asyncio.timeout(60), httpx.AsyncClient(
             transport=httpx.ASGITransport(app=request.app),
@@ -114,6 +116,8 @@ async def run(
                             "pages_read": deps.pages_read,
                             "tool_output_bytes": tool_bytes,
                             "input_tokens": usage.input_tokens,
+                            "output_tokens": usage.output_tokens,
+                            "elapsed_ms": round((perf_counter() - started) * 1000),
                         })
     except ModelHTTPError as error:
         if error.status_code in {401, 403}:

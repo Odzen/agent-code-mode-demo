@@ -10,6 +10,7 @@ from pydantic_ai_harness import CodeMode
 from app.tickets import CUSTOMERS, TicketPage
 
 Approach = Literal["tool-calling", "code-mode"]
+ISSUE_REPO = "pydantic/pydantic-ai"
 INSTRUCTIONS = (
     "Answer questions about the synthetic overdue ticket dataset. "
     "Follow pagination until the last page when answering about the whole dataset. "
@@ -59,7 +60,7 @@ async def get_customer_profile(ctx: RunContext[RunDeps], customer: str) -> dict:
 
 
 async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> dict:
-    """Search public django-allauth issues on GitHub using technical keywords. Returns titles and links."""
+    """Search public Pydantic AI issues on GitHub using technical keywords. Returns titles and links."""
     keywords = " ".join(re.findall(r"[\w-]+", query[:120]))
     if not keywords:
         return {"error": "Provide technical search keywords."}
@@ -68,7 +69,7 @@ async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> dict:
         async with httpx.AsyncClient(timeout=8) as client:
             response = await client.get(
                 "https://api.github.com/search/issues",
-                params={"q": f"{keywords} repo:pennersr/django-allauth is:issue", "per_page": 3},
+                params={"q": f"{keywords} repo:{ISSUE_REPO} is:issue", "per_page": 3},
                 headers={"Accept": "application/vnd.github+json", "User-Agent": "agent-code-mode-demo"},
             )
             response.raise_for_status()
@@ -80,7 +81,7 @@ async def search_public_issues(ctx: RunContext[RunDeps], query: str) -> dict:
     issues = [
         {"title": item["title"], "url": item["html_url"], "state": item["state"]}
         for item in items
-        if item["html_url"].startswith("https://github.com/pennersr/django-allauth/issues/")
+        if item["html_url"].startswith(f"https://github.com/{ISSUE_REPO}/issues/")
     ]
     await ctx.emit(ToolActivity(label="search_public_issues", detail=f"{len(issues)} GitHub results"))
     return {"issues": issues}
@@ -92,7 +93,13 @@ DATA_TOOL_NAMES = [tool.__name__ for tool in DATA_TOOLS]
 
 def build_agent(model: Model, approach: Approach) -> Agent[RunDeps, str]:
     capabilities = []
+    instructions = INSTRUCTIONS
     if approach == "code-mode":
+        instructions += (
+            " When the task needs several dependent tool calls, put them in one run_code "
+            "program where possible. For pagination, follow next_cursor in Python until it "
+            "is null, then return only the data needed to answer."
+        )
         capabilities.append(
             CodeMode(
                 tools=DATA_TOOL_NAMES,
@@ -103,7 +110,7 @@ def build_agent(model: Model, approach: Approach) -> Agent[RunDeps, str]:
     return Agent(
         model,
         deps_type=RunDeps,
-        instructions=INSTRUCTIONS,
+        instructions=instructions,
         tools=DATA_TOOLS,
         capabilities=capabilities,
     )
