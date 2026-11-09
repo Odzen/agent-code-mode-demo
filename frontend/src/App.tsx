@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowRight, Braces, ChevronDown, ExternalLink, ListTree, Ticket, X } from 'lucide-react'
+import { ArrowUp, Braces, ChevronDown, ExternalLink, ListTree, Square, Ticket } from 'lucide-react'
 import { createParser } from 'eventsource-parser'
 import Markdown from 'react-markdown'
 
 import { Badge } from '@/components/ui/badge'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupTextarea } from '@/components/ui/input-group'
 import { Message, MessageContent } from '@/components/ui/message'
 import {
   MessageScroller, MessageScrollerButton, MessageScrollerContent,
@@ -218,21 +218,35 @@ function App() {
         <Badge variant="outline" className="dataset"><Ticket size={15} aria-hidden="true" /> 18 synthetic tickets · 3 pages</Badge>
       </section>
       <form onSubmit={compare} className="composer">
-        <div className="composer-top">
-          <label htmlFor="question" className="prompt-label">Ask both agents</label>
-          <code className="fixed-model">{config?.model || 'DeepSeek Flash'}</code>
-        </div>
-        <InputGroup className="composer-body">
-          <InputGroupTextarea id="question" value={prompt} onChange={(event) => setPrompt(event.target.value)}
-            readOnly={!!controller} maxLength={2000} rows={2} />
-          <InputGroupAddon align="inline-end">
+        <label htmlFor="question" className="sr-only">Ask both agents</label>
+        <InputGroup className="rounded-2xl bg-card">
+          <InputGroupTextarea
+            id="question"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault()
+                event.currentTarget.form?.requestSubmit()
+              }
+            }}
+            readOnly={!!controller}
+            maxLength={2000}
+            rows={2}
+            placeholder="Ask both agents…"
+            className="p-3"
+          />
+          <InputGroupAddon align="block-end">
+            <InputGroupText title={config?.model}>DeepSeek Flash</InputGroupText>
             {controller ? (
-              <InputGroupButton type="button" className="submit" variant="outline" onClick={() => controller.abort()}>
-                Stop <X size={15} aria-hidden="true" />
+              <InputGroupButton type="button" size="icon-sm" className="ml-auto rounded-full"
+                variant="outline" aria-label="Stop both agents" title="Stop both agents" onClick={() => controller.abort()}>
+                <Square size={15} aria-hidden="true" />
               </InputGroupButton>
             ) : (
-              <InputGroupButton type="submit" className="submit" variant="default" disabled={!config?.ready || !prompt.trim()}>
-                Run both <ArrowRight size={15} aria-hidden="true" />
+              <InputGroupButton type="submit" size="icon-sm" className="ml-auto rounded-full"
+                variant="default" aria-label="Run both agents" title="Run both agents" disabled={!config?.ready || !prompt.trim()}>
+                <ArrowUp size={16} aria-hidden="true" />
               </InputGroupButton>
             )}
           </InputGroupAddon>
