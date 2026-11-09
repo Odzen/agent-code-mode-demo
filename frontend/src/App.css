@@ -67,7 +67,7 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--primary-ink); 
   .comparison { grid-template-columns: 1fr; }
 }
 
-.trace .sandbox-trace { display: block; border-left: 2px solid var(--border); margin: 6px 0; padding-left: 10px; }
-.sandbox-trace ol { margin: 0; padding: 2px 0 0; list-style: none; }
-.trace .trace-code summary { display: list-item; list-style: revert; padding: 4px 0; }
-.trace .trace-code summary::-webkit-details-marker { display: inline; }
+.trace .sandbox-step > summary { flex-wrap: wrap; padding: 0; }
+.sandbox-step > summary > svg { transform: rotate(-90deg); }
+.sandbox-step[open] > summary > svg { transform: rotate(0); }
+.sandbox-calls { margin: 6px 0; padding-left: 12px; border-left: 2px solid var(--border); list-style: none; }

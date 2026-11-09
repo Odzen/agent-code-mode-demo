@@ -101,24 +101,26 @@ function Chat({ approach, panel, question, running, tools }: {
                               const nestedSteps = panel.trace.filter((child) => child.parent_id && child.parent_id === step.call_id)
                               return (
                                 <li key={step.call_id ?? index}>
-                                  <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
-                                  {nestedSteps.length > 0 && (
-                                    <div className="sandbox-trace">
-                                      <span>Inside sandbox · {nestedSteps.length} {nestedSteps.length === 1 ? 'tool call' : 'tool calls'}</span>
-                                      <ol>
-                                        {nestedSteps.map((child, childIndex) => (
-                                          <li key={child.call_id ?? childIndex}>
-                                            <div><code>{child.name}</code>{child.detail && <span>{child.detail}</span>}</div>
-                                          </li>
-                                        ))}
-                                      </ol>
-                                    </div>
-                                  )}
-                                  {step.code && (
-                                    <details className="trace-code">
-                                      <summary>Generated Python</summary>
-                                      <pre><code>{step.code}</code></pre>
+                                  {step.code || nestedSteps.length > 0 ? (
+                                    <details className="sandbox-step">
+                                      <summary>
+                                        <ChevronDown size={13} aria-hidden="true" />
+                                        <code>{step.name}</code>
+                                        <span>{nestedSteps.length} {nestedSteps.length === 1 ? 'call' : 'calls'} inside sandbox</span>
+                                      </summary>
+                                      {nestedSteps.length > 0 && (
+                                        <ol className="sandbox-calls" aria-label="Tool calls inside sandbox">
+                                          {nestedSteps.map((child, childIndex) => (
+                                            <li key={child.call_id ?? childIndex}>
+                                              <div><code>{child.name}</code>{child.detail && <span>{child.detail}</span>}</div>
+                                            </li>
+                                          ))}
+                                        </ol>
+                                      )}
+                                      {step.code && <pre aria-label="Generated Python"><code>{step.code}</code></pre>}
                                     </details>
+                                  ) : (
+                                    <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
                                   )}
                                 </li>
                               )
