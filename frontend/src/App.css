@@ -23,18 +23,14 @@ body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink)
 .dataset { border-color: var(--line); background: #fff; color: var(--muted); flex: none; height: 29px; padding: 0 10px; }
 
 .composer { padding: 16px 18px 13px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
-.composer-top, .composer-body { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-.composer-top label { font-size: 14px; font-weight: 700; }
-.composer-body { margin-top: 10px; align-items: stretch; }
+.prompt-label { font-size: 14px; font-weight: 700; }
+.composer-body { margin-top: 7px; }
 .composer textarea { min-height: 52px; padding: 13px 14px; resize: vertical; font-size: 15px; }
-.mode-picker { background: var(--canvas); padding: 3px; border-radius: 10px; display: flex; gap: 2px; }
-.mode-picker button { height: 27px; }
-.mode-picker button[aria-pressed=true] { background: #fff; box-shadow: 0 1px 3px #172b421a; }
-button.submit { min-width: 108px; height: auto; }
+button.submit { min-width: 100px; height: 34px; }
 button.submit[data-variant=default] { background: var(--ink); color: #fff; }
 button.submit[data-variant=default]:hover { background: #2b465f; }
 .composer-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
-.provider-settings { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin: 12px 0; }
+.provider-settings { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin: 0 0 12px; }
 .provider-settings label { display: grid; gap: 4px; font-size: 12px; font-weight: 650; }
 .provider-settings input, .provider-settings select { border: 1px solid var(--line); border-radius: 8px; min-height: 37px; padding: 7px 10px; background: #fff; font: inherit; font-weight: 500; width: 100%; }
 .provider-settings input:focus-visible, .provider-settings select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
@@ -46,11 +42,10 @@ button.submit[data-variant=default]:hover { background: #2b465f; }
 .chat-icon { width: 39px; height: 39px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 10px; flex: none; }
 .chat-header h2 { margin: 0; font-size: 17px; font-weight: 750; letter-spacing: -.02em; }
 .chat-header p { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
-.chat-content { display: flex; flex: 1; flex-direction: column; align-items: start; gap: 12px; padding: 16px; min-height: 188px; }
-.empty { display: grid; place-items: center; align-content: center; gap: 8px; flex: 1; width: 100%; text-align: center; color: var(--muted); font-size: 13px; }
+.chat-scroll { height: 370px; }
+.empty { display: grid; place-items: center; align-content: center; gap: 8px; min-height: 188px; text-align: center; color: var(--muted); font-size: 13px; padding: 16px; }
 .empty svg { color: var(--accent); }
-.message { border-radius: 11px; padding: 10px 12px; font-size: 14px; line-height: 1.55; max-width: 100%; overflow-wrap: anywhere; }
-.question { align-self: end; background: #eef2f5; max-width: 87%; }
+.question { background: #eef2f5; }
 .answer { background: var(--accent-soft); }
 .answer p { margin: 0; }
 .answer p + p, .answer ul, .answer ol { margin-top: 6px; }
@@ -84,5 +79,6 @@ button.submit[data-variant=default]:hover { background: #2b465f; }
   .composer { padding: 12px; }
   .provider-settings { grid-template-columns: 1fr; }
   .composer-body { flex-direction: column; }
+  .composer-body [data-slot=input-group-addon] { width: 100%; justify-content: flex-end; }
   button.submit { height: 38px; }
 }

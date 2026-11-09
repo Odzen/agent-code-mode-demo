@@ -5,8 +5,14 @@ import { createParser } from 'eventsource-parser'
 import Markdown from 'react-markdown'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { Bubble, BubbleContent } from '@/components/ui/bubble'
+import { Input } from '@/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
+import { Message, MessageContent } from '@/components/ui/message'
+import {
+  MessageScroller, MessageScrollerButton, MessageScrollerContent,
+  MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import './App.css'
 
 const example = 'Which customers have at least three overdue support tickets? Give me the counts.'
@@ -16,7 +22,6 @@ const approaches = [
 ] as const
 
 type Approach = typeof approaches[number]['id']
-type Mode = 'example' | 'live'
 type Model = 'deepseek-flash' | 'deepseek-v4-pro'
 type Result = { answer: string; model_requests: number; pages_read: number; tool_output_bytes: number; input_tokens: number | null }
 type Step = { name: string; detail?: string; code?: string }
@@ -49,45 +54,67 @@ function Chat({ approach, panel, question, running }: {
         </div>
         {result?.input_tokens != null && <div><dt>Input tokens</dt><dd>{result.input_tokens.toLocaleString('en-US')}</dd></div>}
       </dl>
-      <div className="chat-content">
-        {question ? (
-          <>
-            <div className="message question">{question}</div>
-            {panel.trace.length > 0 && (
-              <details className="trace">
-                <summary>
-                  <ListTree size={15} aria-hidden="true" />
-                  <span>Execution trace</span>
-                  <span className="trace-count">{panel.trace.length} steps</span>
-                  <ChevronDown className="chevron" size={15} aria-hidden="true" />
-                </summary>
-                <ol>
-                  {panel.trace.map((step, index) => (
-                    <li key={index}>
-                      <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
-                      {step.code && <pre><code>{step.code}</code></pre>}
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            )}
-            {panel.text && <div className="message answer"><Markdown>{panel.text}</Markdown></div>}
-            {panel.error && <p role="alert" className="run-error">{panel.error}</p>}
-            {running && !result && !panel.error && <p role="status" className="running">Running agent…</p>}
-          </>
-        ) : (
-          <div className="empty">
-            <Icon size={25} strokeWidth={1.5} aria-hidden="true" />
-            <p>The response and tool calls will appear here.</p>
-          </div>
-        )}
-      </div>
+      {question ? (
+        <MessageScrollerProvider autoScroll>
+          <MessageScroller className="chat-scroll">
+            <MessageScrollerViewport>
+              <MessageScrollerContent className="gap-3 p-4">
+                <MessageScrollerItem messageId="question" scrollAnchor>
+                  <Message align="end">
+                    <MessageContent>
+                      <Bubble align="end" variant="muted">
+                        <BubbleContent className="question">{question}</BubbleContent>
+                      </Bubble>
+                    </MessageContent>
+                  </Message>
+                </MessageScrollerItem>
+                <MessageScrollerItem messageId="answer">
+                  <Message>
+                    <MessageContent>
+                      {panel.trace.length > 0 && (
+                        <details className="trace">
+                          <summary>
+                            <ListTree size={15} aria-hidden="true" />
+                            <span>Execution trace</span>
+                            <span className="trace-count">{panel.trace.length} steps</span>
+                            <ChevronDown className="chevron" size={15} aria-hidden="true" />
+                          </summary>
+                          <ol>
+                            {panel.trace.map((step, index) => (
+                              <li key={index}>
+                                <div><code>{step.name}</code>{step.detail && <span>{step.detail}</span>}</div>
+                                {step.code && <pre><code>{step.code}</code></pre>}
+                              </li>
+                            ))}
+                          </ol>
+                        </details>
+                      )}
+                      {panel.text && (
+                        <Bubble variant="muted">
+                          <BubbleContent className="answer"><Markdown>{panel.text}</Markdown></BubbleContent>
+                        </Bubble>
+                      )}
+                      {panel.error && <p role="alert" className="run-error">{panel.error}</p>}
+                      {running && !result && !panel.error && <p role="status" className="running">Running agent…</p>}
+                    </MessageContent>
+                  </Message>
+                </MessageScrollerItem>
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
+      ) : (
+        <div className="empty">
+          <Icon size={25} strokeWidth={1.5} aria-hidden="true" />
+          <p>The response and tool calls will appear here.</p>
+        </div>
+      )}
     </article>
   )
 }
 
 function App() {
-  const [mode, setMode] = useState<Mode>('example')
   const [model, setModel] = useState<Model>('deepseek-flash')
   const [apiKey, setApiKey] = useState('')
   const [prompt, setPrompt] = useState(example)
@@ -101,14 +128,16 @@ function App() {
 
   async function streamRun(approach: Approach, submitted: string, signal: AbortSignal) {
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (mode === 'live' && apiKey.trim()) headers.Authorization = `Bearer ${apiKey.trim()}`
       const response = await fetch('/api/run', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ approach, prompt: submitted, mode, model }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({ approach, prompt: submitted, model }),
         signal,
       })
+      if (response.status === 401) throw new Error('Enter a DeepSeek API key.')
       if (!response.ok || !response.body) throw new Error('The server could not start this run.')
 
       let finished = false
@@ -157,7 +186,7 @@ function App() {
   async function compare(event: FormEvent) {
     event.preventDefault()
     const submitted = prompt.trim()
-    if (!submitted || controller) return
+    if (!submitted || !apiKey.trim() || controller) return
     const aborter = new AbortController()
     setController(aborter)
     setQuestion(submitted)
@@ -166,14 +195,6 @@ function App() {
       await Promise.all(approaches.map(({ id }) => streamRun(id, submitted, aborter.signal)))
     } finally {
       setController(undefined)
-    }
-  }
-
-  function changeMode(next: Mode) {
-    setMode(next)
-    if (next === 'example') {
-      setPrompt(example)
-      setApiKey('')
     }
   }
 
@@ -191,47 +212,35 @@ function App() {
         <Badge variant="outline" className="dataset"><Ticket size={15} aria-hidden="true" /> 18 synthetic tickets · 3 pages</Badge>
       </section>
       <form onSubmit={compare} className="composer">
-        <div className="composer-top">
-          <label htmlFor="question">Ask both agents</label>
-          <div className="mode-picker" role="group" aria-label="Model mode">
-            <Button type="button" variant={mode === 'example' ? 'secondary' : 'ghost'} size="sm"
-              disabled={!!controller} aria-pressed={mode === 'example'} onClick={() => changeMode('example')}>Example</Button>
-            <Button type="button" variant={mode === 'live' ? 'secondary' : 'ghost'} size="sm"
-              disabled={!!controller} aria-pressed={mode === 'live'} onClick={() => changeMode('live')}>Live</Button>
-          </div>
+        <div className="provider-settings">
+          <label>DeepSeek API key
+            <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)}
+              autoComplete="off" placeholder="Enter your DeepSeek API key" required disabled={!!controller} />
+          </label>
+          <label>Model
+            <select value={model} onChange={(event) => setModel(event.target.value as Model)} disabled={!!controller}>
+              <option value="deepseek-flash">DeepSeek Flash</option>
+              <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+            </select>
+          </label>
         </div>
-        {mode === 'live' && (
-          <div className="provider-settings">
-            <label>DeepSeek API key
-              <input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)}
-                autoComplete="off" placeholder="Paste a key or use the server environment" disabled={!!controller} />
-            </label>
-            <label>Model
-              <select value={model} onChange={(event) => setModel(event.target.value as Model)} disabled={!!controller}>
-                <option value="deepseek-flash">DeepSeek Flash</option>
-                <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
-              </select>
-            </label>
-          </div>
-        )}
-        <div className="composer-body">
-          <Textarea id="question" value={prompt} onChange={(event) => setPrompt(event.target.value)}
-            readOnly={mode === 'example' || !!controller} maxLength={2000} rows={2} />
-          {controller ? (
-            <Button type="button" className="submit" variant="outline" onClick={() => controller.abort()}>
-              Stop <X size={15} aria-hidden="true" />
-            </Button>
-          ) : (
-            <Button type="submit" className="submit" disabled={!prompt.trim()}>
-              Run both <ArrowRight size={15} aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-        <p className="composer-note">
-          {mode === 'example'
-            ? 'Example uses a scripted model with real tool calls and sandbox execution.'
-            : 'Both panels use the same DeepSeek model. Your key stays in this tab’s memory and is sent with the run.'}
-        </p>
+        <label htmlFor="question" className="prompt-label">Ask both agents</label>
+        <InputGroup className="composer-body">
+          <InputGroupTextarea id="question" value={prompt} onChange={(event) => setPrompt(event.target.value)}
+            readOnly={!!controller} maxLength={2000} rows={2} />
+          <InputGroupAddon align="inline-end">
+            {controller ? (
+              <InputGroupButton type="button" className="submit" variant="outline" onClick={() => controller.abort()}>
+                Stop <X size={15} aria-hidden="true" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton type="submit" className="submit" variant="default" disabled={!apiKey.trim() || !prompt.trim()}>
+                Run both <ArrowRight size={15} aria-hidden="true" />
+              </InputGroupButton>
+            )}
+          </InputGroupAddon>
+        </InputGroup>
+        <p className="composer-note">Both agents use your key for the selected model. The key stays in this tab’s memory between runs.</p>
       </form>
       <section className="comparison" aria-label="Agent comparison">
         {approaches.map((approach) => (

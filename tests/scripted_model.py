@@ -1,4 +1,3 @@
-import asyncio
 import json
 from collections import Counter
 from collections.abc import AsyncIterator
@@ -30,7 +29,6 @@ async def scripted_stream(
     messages: list[ModelMessage], info: AgentInfo
 ) -> AsyncIterator[str | DeltaToolCalls]:
     """Drive the fixed example with a deterministic model stream."""
-    await asyncio.sleep(0.14)
     returns = [
         part
         for message in messages

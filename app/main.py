@@ -1,11 +1,11 @@
 import asyncio
 from collections.abc import AsyncIterator
-from os import getenv
 from pathlib import Path
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import FastAPI, Header, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 from pydantic_ai import AgentRunResultEvent
@@ -25,7 +25,6 @@ from pydantic_ai.usage import UsageLimits
 from pydantic_ai_harness.code_mode import RunCodeCallPart
 
 from app.agents import Approach, PageRead, RunDeps, build_agent
-from app.sample import EXAMPLE_PROMPT, example_model
 from app.tickets import router as tickets_router
 
 app = FastAPI(title="Agent Run Lab")
@@ -35,46 +34,37 @@ app.include_router(tickets_router)
 class RunInput(BaseModel):
     approach: Approach
     prompt: str = Field(min_length=1, max_length=2000)
-    mode: Literal["example", "live"] = "example"
     model: Literal["deepseek-flash", "deepseek-v4-pro"] = "deepseek-flash"
+
+
+def require_api_key(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
+) -> str:
+    key = credentials.credentials.strip()
+    if not key:
+        raise HTTPException(401, "Enter a DeepSeek API key.", headers={"WWW-Authenticate": "Bearer"})
+    return key
 
 
 @app.post("/api/run", response_class=EventSourceResponse)
 async def run(
     body: RunInput,
     request: Request,
-    authorization: Annotated[str | None, Header()] = None,
+    key: Annotated[str, Depends(require_api_key)],
 ) -> AsyncIterator[ServerSentEvent]:
-    if body.mode == "example" and body.prompt.strip() != EXAMPLE_PROMPT:
-        yield ServerSentEvent(event="error", data="Use the example question or switch to Live.")
-        return
-    key = None
-    if body.mode == "live":
-        if authorization and authorization.startswith("Bearer "):
-            key = authorization.removeprefix("Bearer ").strip()
-        else:
-            key = getenv("DEEPSEEK_API_KEY")
-        if not key:
-            yield ServerSentEvent(event="error", data="Enter a DeepSeek API key to run live.")
-            return
-
     try:
         async with asyncio.timeout(60), httpx.AsyncClient(
             transport=httpx.ASGITransport(app=request.app),
             base_url="http://tickets.local",
         ) as client:
-            model = (
-                OpenAIChatModel(body.model, provider=DeepSeekProvider(api_key=key))
-                if key
-                else example_model()
-            )
+            model = OpenAIChatModel(body.model, provider=DeepSeekProvider(api_key=key))
             agent = build_agent(model, body.approach)
             deps = RunDeps(tickets=client)
             async with agent.run_stream_events(
                 body.prompt.strip(),
                 deps=deps,
                 usage_limits=UsageLimits(request_limit=10, tool_calls_limit=12, output_tokens_limit=4000),
-                model_settings=OpenAIChatModelSettings(thinking=False) if key else None,
+                model_settings=OpenAIChatModelSettings(thinking=False),
             ) as events:
                 async for event in events:
                     if isinstance(event, FunctionToolCallEvent):
@@ -104,7 +94,7 @@ async def run(
                             "model_requests": usage.requests,
                             "pages_read": deps.pages_read,
                             "tool_output_bytes": tool_bytes,
-                            "input_tokens": usage.input_tokens if key else None,
+                            "input_tokens": usage.input_tokens,
                         })
     except ModelHTTPError as error:
         if error.status_code in {401, 403}:
