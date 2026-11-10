@@ -18,7 +18,7 @@ import {
 import './App.css'
 
 const examples = [
-  { label: '3+ overdue', prompt: 'Which customers have at least three overdue support tickets? Give me the counts.' },
+  { label: '3+ overdue', prompt: 'Which customers have at least three overdue support tickets?' },
   { label: 'By customer', prompt: 'Read all pages and rank customers by their number of overdue tickets.' },
   { label: 'Password resets', prompt: 'Read all pages. Which customers have overdue password reset tickets? List their ticket IDs.' },
   { label: 'Totals', prompt: 'How many overdue tickets and distinct customers are there across all pages?' },

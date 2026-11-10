@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 
-EXAMPLE_PROMPT = "Which customers have at least three overdue support tickets? Give me the counts."
+EXAMPLE_PROMPT = "Which customers have at least three overdue support tickets?"
 EXAMPLE_CODE = """counts = {}
 cursor = None
 
